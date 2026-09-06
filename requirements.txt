@@ -1,0 +1,16 @@
+# Dependencias del proyecto LSM (Lengua de Señas Mexicana)
+
+# Visión por computadora y procesamiento de imágenes / Webcam
+opencv-python>=4.8.0
+
+# Detección y seguimiento de puntos clave de la mano
+mediapipe>=0.10.0
+
+# Manipulación y cálculo de arrays numéricos / tensores
+numpy>=1.23.0
+
+# Deep Learning (Entrenamiento CNN, Keras y exportación TFLite)
+tensorflow>=2.12.0
+
+# Generación de gráficas de entrenamiento (precisión y pérdida)
+matplotlib>=3.7.0
