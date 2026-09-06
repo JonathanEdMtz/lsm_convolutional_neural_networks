@@ -4,7 +4,7 @@ import cv2
 from pathlib import Path
 from config import (
     REF_DIR,
-    TEST_OUTPUT_DIR,
+    DATA_COLLECTION_OUTPUT_DIR,
     NUM_FOTOS,
     TIEMPO_ENTRE_FOTOS,
     CLASES,
@@ -25,13 +25,13 @@ if not cap.isOpened():
 print("=" * 60)
 print("INICIANDO CAPTURA DE DATASET LSM")
 print(f"  - Imágenes de referencia: {REF_DIR}")
-print(f"  - Carpeta de destino:     {TEST_OUTPUT_DIR}")
+print(f"  - Carpeta de destino:     {DATA_COLLECTION_OUTPUT_DIR}")
 print("=" * 60)
 
 for clase in CLASES:
     letra = CLASES_LSM[clase]
     ruta_ref = REF_DIR / f"{clase}.jpg"
-    carpeta_guardado = TEST_OUTPUT_DIR / str(clase)
+    carpeta_guardado = DATA_COLLECTION_OUTPUT_DIR / str(clase)
     carpeta_guardado.mkdir(parents=True, exist_ok=True)
 
     img_ref = cv2.imread(str(ruta_ref))

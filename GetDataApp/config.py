@@ -9,7 +9,7 @@ BASE_DIR = GETDATA_APP_DIR.parent
 REF_DIR = GETDATA_APP_DIR / "references"
 
 # Carpeta de salida para las imágenes recolectadas
-TEST_OUTPUT_DIR = BASE_DIR / "getData" / "abecedario"
+DATA_COLLECTION_OUTPUT_DIR = GETDATA_APP_DIR / "data_collection"
 #TRAIN_OUTPUT_DIR = BASE_DIR / "data" / "raw"
 
 # === Configuración de captura ===

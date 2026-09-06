@@ -5,8 +5,7 @@ env/
 ENV/
 
 # === Ingonarar los datasets
-datasets/raw/
-datasets/validation/
+data/
 
 # === Modelos y Reportes de Entrenamiento ===
 *.h5
