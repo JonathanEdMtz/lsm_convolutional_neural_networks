@@ -14,7 +14,7 @@ BASE_DIR = PATH_DATA.parent
 
 # Configuraciones para Dataset Masivo
 TAMANO_IMG = 200
-RUTA_DATASET = BASE_DIR / "data" / "data_training" / "lsm_aument_50der_50izq"
+RUTA_DATASET = BASE_DIR / "data" / "data_training" / "lsm_aumentado_50der_50izq"
 NUM_CLASES = 21
 BATCH_SIZE = 128   # Optimizado para procesar grandes conjuntos de datos de forma fluida
 EPOCHS = 40
