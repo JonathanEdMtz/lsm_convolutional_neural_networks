@@ -69,6 +69,40 @@ El modelo de clasificación de señas LSM está construido bajo una arquitectura
 
 ---
 
+## 📊 Sistema de Seguimiento y Bitácora de Experimentos
+
+Al finalizar cada ejecución, `training.py` detecta automáticamente el hardware (GPU vs CPU) y genera **4 archivos de salida** en la carpeta `build/` (ej. `train_cnn_v2`) para llevar un registro profesional y científico:
+
+| Archivo Generado | Formato | Descripción y Propósito |
+| :--- | :---: | :--- |
+| **`train_cnn_v2.h5`** | Pesos Keras | Modelo entrenado final listo para inferencia local, web o conversión a TensorFlow Lite (`.tflite`). |
+| **`train_cnn_v2_report.json`** | JSON | Bitácora de seguimiento con fecha, hardware usado (GPU/CPU), duración exacta, mejor época, precisión y pérdida. |
+| **`train_cnn_v2.png`** | Imagen (300 DPI) | Gráfica profesional de 2 paneles (Precisión *Accuracy* y Pérdida *Loss*) con marcador de mejor época y resumen técnico. |
+| **`train_cnn_v2.pkl`** | Objeto Pickle | Diccionario con el historial completo de métricas por época (`accuracy`, `val_accuracy`, `loss`, `val_loss`). |
+
+### 📄 Ejemplo del contenido del reporte JSON (`_report.json`):
+
+```json
+{
+    "modelo_nombre": "train_cnn_v2",
+    "fecha_entrenamiento": "2026-09-19 01:58:45",
+    "dispositivo": "GPU: NVIDIA Tesla T4",
+    "duracion_segundos": 142.35,
+    "duracion_minutos": 2.37,
+    "total_epocas_ejecutadas": 18,
+    "mejor_epoca": 11,
+    "precision_entrenamiento_max": 99.12,
+    "precision_validacion_max": 97.85,
+    "perdida_entrenamiento_min": 0.0245,
+    "perdida_validacion_min": 0.0612,
+    "total_parametros": 412589,
+    "batch_size": 128,
+    "tamano_imagen": "200x200"
+}
+```
+
+---
+
 ## 🚀 Ejemplo de Uso
 
 ```bash

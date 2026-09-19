@@ -1,11 +1,13 @@
 import os
+import json
+import time
+import pickle
+from datetime import datetime
+from pathlib import Path
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import time
-import pickle
-from pathlib import Path
 
 PATH_DATA = Path(__file__).resolve().parent
 BASE_DIR = PATH_DATA.parent
@@ -24,9 +26,15 @@ if not RUTA_DATASET.exists():
     print(f"[!] Error: La ruta del dataset {RUTA_DATASET} no existe.")
     exit(1)
 
+# DETECCIÓN DE HARDWARE (GPU / CPU)
+gpus = tf.config.list_physical_devices('GPU')
+dispositivo_usado = f"GPU: {tf.config.experimental.get_device_details(gpus[0])['device_name']}" if gpus else "CPU (Sin GPU aceleradora)"
+
 print("=" * 70)
 print("INICIANDO ENTRENAMIENTO DE RED NEURONAL CONVOLUCIONAL (CNN AVANZADA)")
-print(f"  - Ruta del Dataset: {RUTA_DATASET}")
+print(f"  - Fecha/Hora:      {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"  - Hardware Usado:  {dispositivo_usado}")
+print(f"  - Ruta Dataset:    {RUTA_DATASET}")
 print(f"  - Tamaño Imagen:   {TAMANO_IMG}x{TAMANO_IMG} (1 canal - Escala de Grises)")
 print(f"  - Batch Size:      {BATCH_SIZE}")
 print(f"  - Épocas Máximas:  {EPOCHS}")
@@ -120,7 +128,6 @@ modeloCNN.summary()
 
 # CALLBACKS INTELIGENTES PARA OPTIMIZAR ENTRENAMIENTO
 callbacks = [
-    # Reduce la tasa de aprendizaje si la precisión de validación se estanca
     tf.keras.callbacks.ReduceLROnPlateau(
         monitor='val_loss',
         factor=0.5,
@@ -128,7 +135,6 @@ callbacks = [
         min_lr=1e-6,
         verbose=1
     ),
-    # Detiene el entrenamiento si ya no mejora para evitar sobreajuste
     tf.keras.callbacks.EarlyStopping(
         monitor='val_accuracy',
         patience=7,
@@ -152,27 +158,78 @@ history = modeloCNN.fit(
 )
 
 fin = time.time()
-duracion = fin - inicio
+duracion_segundos = fin - inicio
+duracion_minutos = duracion_segundos / 60.0
 
+# 1. Guardar el modelo entrenado
 os.makedirs(name.parent, exist_ok=True)
 modeloCNN.save(str(name) + ".h5")
-print(f"\n[✓] Modelo guardado exitosamente en: '{name}.h5'")
+print(f"\n[✓] Modelo H5 guardado exitosamente en: '{name}.h5'")
 
-# Guardar el historial de entrenamiento
+# 2. Guardar el historial pickle
 with open(str(name) + ".pkl", "wb") as f:
     pickle.dump(history.history, f)
 
-# Graficar rendimiento
-plt.figure(figsize=(10, 6))
-plt.plot(history.history['accuracy'], label='Precisión Entrenamiento')
-plt.plot(history.history['val_accuracy'], label='Precisión Validación')
-plt.xlabel('Épocas')
-plt.ylabel('Precisión')
-plt.title('Rendimiento del Modelo CNN Avanzado (LSM)')
-plt.legend()
-plt.grid(True)
-texto_tiempo = f"Duración total: {duracion:.2f} segundos ({duracion/60:.2f} min)"
-plt.text(0.5, 0.05, texto_tiempo, fontsize=10, color='gray', transform=plt.gca().transAxes)
-plt.tight_layout()
-plt.savefig(str(name) + ".png")
+# 3. Extraer métricas clave
+best_epoch = int(np.argmax(history.history['val_accuracy'])) + 1
+best_val_acc = float(np.max(history.history['val_accuracy'])) * 100
+best_train_acc = float(history.history['accuracy'][best_epoch - 1]) * 100
+min_val_loss = float(np.min(history.history['val_loss']))
+min_train_loss = float(history.history['loss'][best_epoch - 1])
+
+# 4. Guardar Reporte en JSON (Bitácora de experimentos)
+reporte_datos = {
+    "modelo_nombre": name.name,
+    "fecha_entrenamiento": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    "dispositivo": dispositivo_usado,
+    "duracion_segundos": round(duracion_segundos, 2),
+    "duracion_minutos": round(duracion_minutos, 2),
+    "total_epocas_ejecutadas": len(history.history['accuracy']),
+    "mejor_epoca": best_epoch,
+    "precision_entrenamiento_max": round(best_train_acc, 2),
+    "precision_validacion_max": round(best_val_acc, 2),
+    "perdida_entrenamiento_min": round(min_train_loss, 4),
+    "perdida_validacion_min": round(min_val_loss, 4),
+    "total_parametros": int(modeloCNN.count_params()),
+    "batch_size": BATCH_SIZE,
+    "tamano_imagen": f"{TAMANO_IMG}x{TAMANO_IMG}"
+}
+
+ruta_reporte_json = str(name) + "_report.json"
+with open(ruta_reporte_json, "w", encoding="utf-8") as f:
+    json.dump(reporte_datos, f, indent=4, ensure_ascii=False)
+print(f"[✓] Reporte JSON de seguimiento guardado en: '{ruta_reporte_json}'")
+
+# 5. Generar Gráfica Profesional de 2 Paneles (Precisión y Pérdida)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+# Subplot 1: Precisión (Accuracy)
+ax1.plot(history.history['accuracy'], label='Entrenamiento', color='#1f77b4', linewidth=2)
+ax1.plot(history.history['val_accuracy'], label='Validación', color='#ff7f0e', linewidth=2)
+ax1.axvline(best_epoch - 1, color='red', linestyle='--', label=f'Mejor Época ({best_epoch})')
+ax1.set_title('Precisión del Modelo (Accuracy)', fontsize=12, fontweight='bold')
+ax1.set_xlabel('Épocas')
+ax1.set_ylabel('Precisión')
+ax1.legend()
+ax1.grid(True, linestyle=':', alpha=0.6)
+
+# Subplot 2: Pérdida (Loss)
+ax2.plot(history.history['loss'], label='Entrenamiento', color='#1f77b4', linewidth=2)
+ax2.plot(history.history['val_loss'], label='Validación', color='#ff7f0e', linewidth=2)
+ax2.axvline(best_epoch - 1, color='red', linestyle='--', label=f'Mejor Época ({best_epoch})')
+ax2.set_title('Pérdida del Modelo (Loss)', fontsize=12, fontweight='bold')
+ax2.set_xlabel('Épocas')
+ax2.set_ylabel('Pérdida (Loss)')
+ax2.legend()
+ax2.grid(True, linestyle=':', alpha=0.6)
+
+# Pie de gráfica con métricas e información técnica
+pie_texto = (f"Duración: {duracion_minutos:.2f} min ({dispositivo_usado}) | "
+             f"Max Val Accuracy: {best_val_acc:.2f}% en Época {best_epoch}")
+fig.suptitle(f"Seguimiento de Entrenamiento: {name.name}", fontsize=14, fontweight='bold')
+fig.text(0.5, 0.01, pie_texto, ha='center', fontsize=10, color='#555555')
+
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.savefig(str(name) + ".png", dpi=300)
+print(f"[✓] Gráfica de rendimiento guardada en: '{name}.png'")
 plt.show()
