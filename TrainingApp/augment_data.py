@@ -8,9 +8,9 @@ PATH_DATA = Path(__file__).resolve().parent
 BASE_DIR = PATH_DATA.parent
 
 RUTA_ORIGEN = BASE_DIR / "data" / "data_training" / "lsm"         # Dataset original
-RUTA_DESTINO = BASE_DIR / "data" / "data_training" / "lsm_aument"  # Dataset aumentado
+RUTA_DESTINO = BASE_DIR / "data" / "data_training" / "lsm_aument2"  # Dataset aumentado
 
-AUMENTOS_POR_IMAGEN = 6  # Aumentos aleatorios 
+AUMENTOS_POR_IMAGEN = 3  # Generará 3 aumentos originales + 3 aumentos espejados (+ 1 original + 1 espejo = 8 imágenes en total, 50% derecha / 50% izquierda)
 
 if not RUTA_ORIGEN.exists():
     print(f"[!] Error: La ruta de origen {RUTA_ORIGEN} no existe.")
@@ -33,14 +33,14 @@ for clase in os.listdir(RUTA_ORIGEN):
 
         base_name = os.path.splitext(img_name)[0]
 
-        # Guarda imagen original intacta
+        # 1. Guardar imagen original (Mano Derecha / Base)
         cv2.imwrite(os.path.join(ruta_clase_destino, f"{base_name}_original.jpg"), img)
 
-        # Crea y guarda imagen espejada manualmente
+        # 2. Guardar imagen espejo limpia (Mano Izquierda / Base)
         espejo = cv2.flip(img, 1)
         cv2.imwrite(os.path.join(ruta_clase_destino, f"{base_name}_mirror.jpg"), espejo)
 
-        # Generador
+        # Generador de aumentos aleatorios
         datagen = ImageDataGenerator(
             rescale=1./255,
             rotation_range=30,
@@ -55,9 +55,14 @@ for clase in os.listdir(RUTA_ORIGEN):
         img_array = np.expand_dims(img_array, 0)
         gen = datagen.flow(img_array, batch_size=1)
 
-        # aumentos aleatorios
+        # 3. Generar aumentos balanceados 50/50
         for i in range(AUMENTOS_POR_IMAGEN):
-            batch = next(gen)[0] * 255  # Desnormaliza
-            batch = np.clip(batch, 0, 255).astype(np.uint8)
-            nombre_aug = f"{base_name}_aug{i}.jpg"
-            cv2.imwrite(os.path.join(ruta_clase_destino, nombre_aug), batch)
+            # Aumento para Mano Derecha
+            batch_orig = next(gen)[0] * 255  # Desnormaliza
+            batch_orig = np.clip(batch_orig, 0, 255).astype(np.uint8)
+            cv2.imwrite(os.path.join(ruta_clase_destino, f"{base_name}_orig_aug{i}.jpg"), batch_orig)
+
+            # Espejo idéntico del aumento para Mano Izquierda
+            batch_mirr = cv2.flip(batch_orig, 1)
+            cv2.imwrite(os.path.join(ruta_clase_destino, f"{base_name}_mirr_aug{i}.jpg"), batch_mirr)
+

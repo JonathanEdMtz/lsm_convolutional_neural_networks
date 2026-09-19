@@ -54,7 +54,14 @@ pip install -r requirements.txt
 
 ---
 
-## 5. Ejecutar el proyecto
+## 5. Módulos del Proyecto
+
+* **[TrainingApp](file:///c:/Users/jonny/Documents/LSM/lsm_convolutional_neural_networks/TrainingApp/README.md)**: Documentación sobre preprocesamiento, aumento de datos balanceado (50% derecha / 50% izquierda) y entrenamiento de la CNN.
+* **[DataApp](file:///c:/Users/jonny/Documents/LSM/lsm_convolutional_neural_networks/DataApp/README.md)**: Recolección de imágenes del dataset LSM mediante cámara web.
+
+---
+
+## 6. Ejecutar el proyecto
 
 Ejemplo:
 
