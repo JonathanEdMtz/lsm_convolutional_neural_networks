@@ -20,7 +20,7 @@ BATCH_SIZE = 128   # Optimizado para procesar grandes conjuntos de datos de form
 EPOCHS = 40
 
 SAVE_DIR = BASE_DIR / "build"
-name = SAVE_DIR / "train_cnn_v2"
+name = SAVE_DIR / "DeepCNNv1"
 
 if not RUTA_DATASET.exists():
     print(f"[!] Error: La ruta del dataset {RUTA_DATASET} no existe.")

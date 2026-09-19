@@ -75,10 +75,10 @@ Al finalizar cada ejecución, `training.py` detecta automáticamente el hardware
 
 | Archivo Generado | Formato | Descripción y Propósito |
 | :--- | :---: | :--- |
-| **`train_cnn_v2.h5`** | Pesos Keras | Modelo entrenado final listo para inferencia local, web o conversión a TensorFlow Lite (`.tflite`). |
-| **`train_cnn_v2_report.json`** | JSON | Bitácora de seguimiento con fecha, hardware usado (GPU/CPU), duración exacta, mejor época, precisión y pérdida. |
-| **`train_cnn_v2.png`** | Imagen (300 DPI) | Gráfica profesional de 2 paneles (Precisión *Accuracy* y Pérdida *Loss*) con marcador de mejor época y resumen técnico. |
-| **`train_cnn_v2.pkl`** | Objeto Pickle | Diccionario con el historial completo de métricas por época (`accuracy`, `val_accuracy`, `loss`, `val_loss`). |
+| **`DeepCNNv1.h5`** | Pesos Keras | Modelo entrenado final listo para inferencia local, web o conversión a TensorFlow Lite (`.tflite`). |
+| **`DeepCNNv1_report.json`** | JSON | Bitácora de seguimiento con fecha, hardware usado (GPU/CPU), duración exacta, mejor época, precisión y pérdida. |
+| **`DeepCNNv1.png`** | Imagen (300 DPI) | Gráfica profesional de 2 paneles (Precisión *Accuracy* y Pérdida *Loss*) con marcador de mejor época y resumen técnico. |
+| **`DeepCNNv1.pkl`** | Objeto Pickle | Diccionario con el historial completo de métricas por época (`accuracy`, `val_accuracy`, `loss`, `val_loss`). |
 
 ### 📄 Ejemplo del contenido del reporte JSON (`_report.json`):
 
