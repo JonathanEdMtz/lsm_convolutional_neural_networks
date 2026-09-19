@@ -28,6 +28,12 @@ if not RUTA_DATASET.exists():
 
 # DETECCIÓN DE HARDWARE (GPU / CPU)
 gpus = tf.config.list_physical_devices('GPU')
+if not gpus:
+    raise RuntimeError(
+        "❌ TensorFlow no detectó ninguna GPU."
+    )
+
+print("✅ GPU detectada:", gpus)
 dispositivo_usado = f"GPU: {tf.config.experimental.get_device_details(gpus[0])['device_name']}" if gpus else "CPU (Sin GPU aceleradora)"
 
 print("=" * 70)
