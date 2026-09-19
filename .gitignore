@@ -6,6 +6,7 @@ ENV/
 
 # === Ingonarar los datasets
 data/
+build/
 
 # === Modelos y Reportes de Entrenamiento ===
 *.h5

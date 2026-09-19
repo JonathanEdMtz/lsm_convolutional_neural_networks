@@ -2,17 +2,28 @@ import os
 import time
 import cv2
 from pathlib import Path
-from config import (
-    REF_DIR,
-    DATA_COLLECTION_OUTPUT_DIR,
-    NUM_FOTOS,
-    TIEMPO_ENTRE_FOTOS,
-    CLASES,
-    CLASES_LSM,
-    REF_IMG_SIZE,
-    FRAME_WIDTH,
-    FRAME_HEIGHT,
-)
+
+# === Configuración y Rutas ===
+GETDATA_APP_DIR = Path(__file__).resolve().parent
+BASE_DIR = GETDATA_APP_DIR.parent
+
+# Rutas de archivos
+REF_DIR = GETDATA_APP_DIR / "references"
+DATA_COLLECTION_OUTPUT_DIR = BASE_DIR / "data" / "data_recolection"
+
+# Configuración de captura
+NUM_FOTOS = 5
+TIEMPO_ENTRE_FOTOS = 1
+REF_IMG_SIZE = (200, 200)
+FRAME_WIDTH = 1280
+FRAME_HEIGHT = 720
+
+# Clases LSM
+CLASES = range(21)
+CLASES_LSM = [
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'L',
+    'M', 'N', 'O', 'P', 'R', 'S', 'T', 'U', 'V', 'W', 'Y'
+]
 
 # === Inicialización de cámara ===
 cap = cv2.VideoCapture(0)
@@ -73,19 +84,19 @@ for clase in CLASES:
 
         key = cv2.waitKey(1)
         if key == 27:  # Tecla ESC
-            print(f"[!] Clase {clase} saltada por el usuario.")
+            print(f"Clase {clase} saltada por el usuario.")
             break
         elif key == 32:  # Tecla ESPACIO
-            print(f"[*] Capturando {NUM_FOTOS} fotos para clase {clase} ({letra})...")
+            print(f"Capturando {NUM_FOTOS} fotos para clase {clase} ({letra})...")
             for i in range(NUM_FOTOS):
                 ret, frame_actual = cap.read()
                 if not ret:
-                    print("[!] Error al capturar frame.")
+                    print("Error al capturar frame.")
                     break
 
                 nombre_foto = carpeta_guardado / f'foto_{foto_contador}.jpg'
                 cv2.imwrite(str(nombre_foto), frame_actual)
-                print(f'[✓] Foto {i+1}/{NUM_FOTOS} guardada: {nombre_foto}')
+                print(f'Foto {i+1}/{NUM_FOTOS} guardada: {nombre_foto}')
                 foto_contador += 1
 
                 # Mostrar retroalimentación en la ventana
@@ -96,7 +107,7 @@ for clase in CLASES:
                 if i < NUM_FOTOS - 1:
                     time.sleep(TIEMPO_ENTRE_FOTOS)
 
-            print(f"[✓] Captura de clase {clase} ({letra}) completada.")
+            print(f"Captura de clase {clase} ({letra}) completada.")
             break
 
 cap.release()

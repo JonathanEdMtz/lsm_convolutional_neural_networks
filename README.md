@@ -82,4 +82,13 @@ pip freeze > requirements.txt
 
 ---
 
+## 🛠️ Requisitos de MediaPipe (Python 3.13+)
+
+Si utilizas **Python 3.13+**, la aplicación utiliza la nueva API de MediaPipe Tasks y requiere el modelo `hand_landmarker.task`.
+
+1. **Descarga automática:** Al ejecutar `python main.py`, el sistema detectará si falta el archivo y lo descargará automáticamente.
+2. **Descarga manual (Opcional):** Si prefieres descargarlo manualmente, colócalo en la carpeta `build/`:
+   - URL: https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+
+
 Con estos pasos el entorno de desarrollo quedará configurado nuevamente.

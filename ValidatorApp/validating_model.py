@@ -6,13 +6,21 @@ from pathlib import Path
 import mediapipe as mp
 
 # Cargar modelo entrenado
-modelo = tf.keras.models.load_model('train_cnn_v1.h5')
+APP_DIR = Path(__file__).resolve().parent
+BASE_DIR = APP_DIR.parent
+MODEL_PATH = BASE_DIR / 'build' / 'train_cnn_v1.h5'
+
+if not MODEL_PATH.exists():
+    print(f"[!] Error: No se encontró el modelo entrenado en {MODEL_PATH}")
+    exit(1)
+
+modelo = tf.keras.models.load_model(MODEL_PATH)
 
 # Mapeo de índices a letras (sin j, k, ñ, q, x, z)
 CLASES_LSM = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', 'U', 'V', 'W', 'Y']
 
 # Ruta base del conjunto de validación (con imágenes en carpetas 00-20)
-BASE_PATH = Path('./test/eval_v1')
+BASE_PATH = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado_preprocesado'
 
 # Inicializar MediaPipe Hands
 mp_hands = mp.solutions.hands

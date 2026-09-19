@@ -5,14 +5,20 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import time
 import pickle
+from pathlib import Path
+
+PATH_DATA = Path(__file__).resolve().parent
+BASE_DIR = PATH_DATA.parent
 
 # Configuraciones
 TAMANO_IMG = 200
-RUTA_DATASET = "lsm_aument"
+RUTA_DATASET = BASE_DIR / "data" / "data_training" / "lsm_aument"
 NUM_CLASES = 21
 BATCH_SIZE = 64
 EPOCHS = 50
-name = "train_cnn_v1"
+if not RUTA_DATASET.exists():
+    print(f"[!] Error: La ruta del dataset {RUTA_DATASET} no existe.")
+    exit(1)
 
 datagen = ImageDataGenerator(
     rescale=1./255,              
@@ -63,22 +69,26 @@ modeloCNN2_AD.compile(
     metrics=['accuracy']
 )
 
+steps_per_epoch = max(1, train_generator.samples // BATCH_SIZE)
+validation_steps = max(1, val_generator.samples // BATCH_SIZE)
+
 inicio = time.time()
 history = modeloCNN2_AD.fit(
     train_generator,
     epochs=EPOCHS,
     validation_data=val_generator,
-    steps_per_epoch=train_generator.samples // BATCH_SIZE,
-    validation_steps=val_generator.samples // BATCH_SIZE
+    steps_per_epoch=steps_per_epoch,
+    validation_steps=validation_steps
 )
 
 fin = time.time()
 duracion = fin - inicio
 
-modeloCNN2_AD.save(name + ".h5")
+os.makedirs(name.parent, exist_ok=True)
+modeloCNN2_AD.save(str(name) + ".h5")
 
 # Guardar el historial de entrenamiento
-with open(name +".pkl", "wb") as f:
+with open(str(name) + ".pkl", "wb") as f:
     pickle.dump(history.history, f)
 
 # Graficar
@@ -94,5 +104,5 @@ plt.grid(True)
 texto_tiempo = f"Duración: {duracion:.2f} segundos"
 plt.text(0.5, 0.05, texto_tiempo, fontsize=10, color='gray', transform=plt.gca().transAxes)
 plt.tight_layout()
-plt.savefig(name + ".png")
+plt.savefig(str(name) + ".png")
 plt.show()

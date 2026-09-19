@@ -81,9 +81,15 @@ def procesar_carpetas(base_path, dest_path, grayscale=True, target_size=(200, 20
     print(f"\n✅ Proceso completado. Revisa la carpeta '{dest_path}'")
 
 if __name__ == '__main__':
+    APP_DIR = Path(__file__).resolve().parent
+    BASE_DIR = APP_DIR.parent
+
+    default_input = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado'
+    default_output = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado_prueba'
+
     parser = argparse.ArgumentParser(description="Segmentación y preprocesamiento genérico de manos para LSM.")
-    parser.add_argument('--input', type=str, default='./lsm_aument', help="Ruta de la carpeta original (ej. ./lsm_aument)")
-    parser.add_argument('--output', type=str, default='./lsm_prueba3', help="Ruta de la carpeta de destino (ej. ./lsm_prueba3)")
+    parser.add_argument('--input', type=str, default=str(default_input), help="Ruta de la carpeta original")
+    parser.add_argument('--output', type=str, default=str(default_output), help="Ruta de la carpeta de destino")
     parser.add_argument('--rgb', action='store_true', help="Guardar a color (por defecto convierte a escala de grises)")
     parser.add_argument('--no-resize', action='store_true', help="Mantener el tamaño original (por defecto redimensiona a 200x200)")
     parser.add_argument('--size', type=int, default=200, help="Tamaño de redimensión (ej. 200 para 200x200)")

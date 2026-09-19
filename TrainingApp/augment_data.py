@@ -1,16 +1,26 @@
 import os
 import cv2
 import numpy as np
+from pathlib import Path
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array
 
-RUTA_ORIGEN = 'lsm'         # Dataset original
-RUTA_DESTINO = 'lsm_aument'  # Dataset aumentado
+PATH_DATA = Path(__file__).resolve().parent
+BASE_DIR = PATH_DATA.parent
+
+RUTA_ORIGEN = BASE_DIR / "data" / "data_training" / "lsm"         # Dataset original
+RUTA_DESTINO = BASE_DIR / "data" / "data_training" / "lsm_aument"  # Dataset aumentado
 
 AUMENTOS_POR_IMAGEN = 6  # Aumentos aleatorios 
+
+if not RUTA_ORIGEN.exists():
+    print(f"[!] Error: La ruta de origen {RUTA_ORIGEN} no existe.")
+    exit(1)
 
 # Recorremos todas las clases
 for clase in os.listdir(RUTA_ORIGEN):
     ruta_clase_origen = os.path.join(RUTA_ORIGEN, clase)
+    if not os.path.isdir(ruta_clase_origen):
+        continue
     ruta_clase_destino = os.path.join(RUTA_DESTINO, clase)
     os.makedirs(ruta_clase_destino, exist_ok=True)
 
