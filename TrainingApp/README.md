@@ -6,6 +6,7 @@ Módulo para el preprocesamiento, aumento de datos (*data augmentation*) y entre
 
 ## 📁 Archivos del módulo
 
+* **`prepare_dataset.py`**: **[RECOMENDADO]** Script unificado que ejecuta todo el pipeline (Segmentación ROI + Escala de grises 200x200 + Aumento balanceado 50/50). Soporta la bandera `aplicar_aumento=True` para Entrenamiento y `aplicar_aumento=False` para Validación.
 * **`preprocess.py`**: Recorta el área de la mano (ROI) usando MediaPipe (compatible con versión Legacy y Tasks API en Python 3.13+) y convierte las imágenes a escala de grises y tamaño $200 \times 200$.
 * **`augment_data.py`**: Aplica técnicas de aumento de datos balanceadas (50% mano derecha / 50% mano izquierda) sobre el dataset original.
 * **`training.py`**: Define la arquitectura de la red CNN y realiza el proceso de entrenamiento.

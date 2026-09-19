@@ -12,10 +12,15 @@ BASE_DIR = PATH_DATA.parent
 
 # Configuraciones
 TAMANO_IMG = 200
-RUTA_DATASET = BASE_DIR / "data" / "data_training" / "lsm_aument"
+RUTA_DATASET = BASE_DIR / "data" / "data_training" / "lsm_aument_50der_50izq"
 NUM_CLASES = 21
 BATCH_SIZE = 64
 EPOCHS = 50
+
+SAVE_DIR = BASE_DIR / "build"
+name = SAVE_DIR / "train_cnn_v1"
+
+
 if not RUTA_DATASET.exists():
     print(f"[!] Error: La ruta del dataset {RUTA_DATASET} no existe.")
     exit(1)
