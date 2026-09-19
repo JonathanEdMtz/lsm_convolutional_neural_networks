@@ -22,18 +22,25 @@ CLASES_LSM = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'L', 'M', 'N', 'O', '
 # Ruta base del conjunto de validación (con imágenes en carpetas 00-20)
 BASE_PATH = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado_preprocesado'
 
-# Inicializar MediaPipe Hands
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=True, max_num_hands=1)
+# Inicializar MediaPipe Hands (Opcional si las imágenes ya están preprocesadas)
+try:
+    mp_hands = mp.solutions.hands
+    hands = mp_hands.Hands(static_image_mode=True, max_num_hands=1)
+except AttributeError:
+    hands = None
+    print("[!] Nota: 'mp.solutions' no está disponible en Python 3.13. Se procesarán las imágenes directamente.")
 
 # Función para segmentar mano desde imagen
 def segmentar_mano(imagen_bgr):
-    h, w, _ = imagen_bgr.shape
-    imagen_rgb = cv2.cvtColor(imagen_bgr, cv2.COLOR_BGR2RGB)
+    if hands is None:
+        return imagen_bgr  # Retorna la imagen completa si no hay detector legacy
+
+    h, w = imagen_bgr.shape[:2]
+    imagen_rgb = cv2.cvtColor(imagen_bgr, cv2.COLOR_BGR2RGB) if len(imagen_bgr.shape) == 3 else imagen_bgr
     resultado = hands.process(imagen_rgb)
 
     if not resultado.multi_hand_landmarks:
-        return None  # No se detectó mano
+        return imagen_bgr  # Si la imagen ya es un recorte de mano, retorna la imagen original
 
     landmarks = resultado.multi_hand_landmarks[0].landmark
     x_coords = [int(lm.x * w) for lm in landmarks]
@@ -44,8 +51,12 @@ def segmentar_mano(imagen_bgr):
     return imagen_bgr[y_min:y_max, x_min:x_max]
 
 # Preprocesar imagen segmentada
-def preparar_imagen_segmentada(img_mano_bgr):
-    img_gray = cv2.cvtColor(img_mano_bgr, cv2.COLOR_BGR2GRAY)
+def preparar_imagen_segmentada(img_mano):
+    if len(img_mano.shape) == 3:
+        img_gray = cv2.cvtColor(img_mano, cv2.COLOR_BGR2GRAY)
+    else:
+        img_gray = img_mano
+
     img_resized = cv2.resize(img_gray, (200, 200))
     img_array = img_resized / 255.0
     img_array = np.expand_dims(img_array, axis=-1)  # (200, 200, 1)

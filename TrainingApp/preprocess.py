@@ -1,59 +1,118 @@
 import os
+from pathlib import Path
 import cv2
 import numpy as np
-from pathlib import Path
 import mediapipe as mp
-import argparse
 
-# --- MediaPipe Hands ---
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=True, max_num_hands=1)
+
+# CONFIGURACIÓN Y RUTAS (CONSTANTES)
+
+APP_DIR = Path(__file__).resolve().parent
+BASE_DIR = APP_DIR.parent
+
+# Rutas de origen y destino
+RUTA_INPUT = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado'
+RUTA_OUTPUT = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado_preprocesado'
+
+# Parámetros de procesamiento
+ESCALA_GRISES = True
+TAMANO_IMG = (200, 200)
+
+
+# CONFIGURACIÓN DE MEDIAPIPE (Detección de Manos)
+USE_TASKS_API = False
+
+if hasattr(mp, 'solutions') and hasattr(mp.solutions, 'hands'):
+    mp_hands = mp.solutions.hands
+    detector_manos = mp_hands.Hands(static_image_mode=True, max_num_hands=1)
+else:
+    USE_TASKS_API = True
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+
+    TASK_PATH = str(BASE_DIR / 'build' / 'hand_landmarker.task')
+    if not os.path.exists(TASK_PATH):
+        print("[*] Descargando hand_landmarker.task para MediaPipe Tasks...")
+        os.makedirs(os.path.dirname(TASK_PATH), exist_ok=True)
+        import urllib.request
+        url = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+        urllib.request.urlretrieve(url, TASK_PATH)
+        print("[✓] Modelo hand_landmarker.task descargado exitosamente.")
+
+    base_options = python.BaseOptions(model_asset_path=TASK_PATH)
+    options = vision.HandLandmarkerOptions(base_options=base_options, num_hands=1)
+    detector_manos = vision.HandLandmarker.create_from_options(options)
+
 
 def segmentar_mano(imagen_bgr):
     """
-    Detecta los puntos clave de la mano usando MediaPipe y recorta la caja delimitadora.
+    Detecta la mano en la imagen y devuelve el recorte (ROI) con un margen de seguridad.
+    Retorna None si no se detecta ninguna mano.
     """
-    h, w, _ = imagen_bgr.shape
+    alto, ancho, _ = imagen_bgr.shape
     imagen_rgb = cv2.cvtColor(imagen_bgr, cv2.COLOR_BGR2RGB)
-    resultado = hands.process(imagen_rgb)
-    if not resultado.multi_hand_landmarks:
-        return None
-    landmarks = resultado.multi_hand_landmarks[0].landmark
-    x_coords = [int(lm.x * w) for lm in landmarks]
-    y_coords = [int(lm.y * h) for lm in landmarks]
-    x_min, x_max = max(min(x_coords) - 40, 0), min(max(x_coords) + 40, w)
-    y_min, y_max = max(min(y_coords) - 40, 0), min(max(y_coords) + 60, h)
+
+    landmarks_list = []
+    if USE_TASKS_API:
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=imagen_rgb)
+        detection_result = detector_manos.detect(mp_image)
+        if detection_result.hand_landmarks:
+            landmarks_list = detection_result.hand_landmarks[0]
+    else:
+        resultado = detector_manos.process(imagen_rgb)
+        if resultado.multi_hand_landmarks:
+            landmarks_list = resultado.multi_hand_landmarks[0].landmark
+
+    if not landmarks_list:
+        return None  # No se detectó mano en la imagen
+
+    # Obtener coordenadas de los puntos clave de la mano
+    x_coords = [int(lm.x * ancho) for lm in landmarks_list]
+    y_coords = [int(lm.y * alto) for lm in landmarks_list]
+
+    # Calcular caja delimitadora con margen (padding)
+    x_min = max(min(x_coords) - 40, 0)
+    x_max = min(max(x_coords) + 40, ancho)
+    y_min = max(min(y_coords) - 40, 0)
+    y_max = min(max(y_coords) + 60, alto)
+
     return imagen_bgr[y_min:y_max, x_min:x_max]
 
-def preprocesar(img_bgr, grayscale=True, target_size=None):
+
+def preprocesar(img_bgr, grayscale=True, target_size=(200, 200)):
     """
-    Preprocesa la imagen aplicando conversión a escala de grises y/o redimensionamiento.
+    Aplica conversión a escala de grises y/o redimensionamiento a la imagen segmentada.
     """
-    img = img_bgr
+    imagen_procesada = img_bgr
+
     if grayscale:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        imagen_procesada = cv2.cvtColor(imagen_procesada, cv2.COLOR_BGR2GRAY)
+
     if target_size is not None:
-        img = cv2.resize(img, target_size)
-    return img
+        imagen_procesada = cv2.resize(imagen_procesada, target_size)
+
+    return imagen_procesada
+
 
 def procesar_carpetas(base_path, dest_path, grayscale=True, target_size=(200, 200)):
     """
-    Recorre los subdirectorios numerados del dataset, segmenta y guarda las imágenes procesadas.
+    Recorre los subdirectorios del dataset (carpetas 00 a 20),
+    segmenta la mano en cada imagen y guarda el resultado en la carpeta de destino.
     """
     base_path = Path(base_path)
     dest_path = Path(dest_path)
-    
-    # Recorrer carpetas de clases (00 a 20)
+
+    # Procesar clases numeradas del 00 al 20
     for i in range(21):
         subcarpeta = f"{i:02}"
         origen = base_path / subcarpeta
         destino = dest_path / subcarpeta
 
         # Crear carpeta de destino si no existe
-        os.makedirs(destino, exist_ok=True)
+        destino.mkdir(parents=True, exist_ok=True)
 
         if not origen.exists():
-            print(f"[!] Carpeta no encontrada: {origen}")
+            print(f"[!] Carpeta de origen no encontrada: {origen}")
             continue
 
         archivos = [f for f in os.listdir(origen) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
@@ -64,7 +123,7 @@ def procesar_carpetas(base_path, dest_path, grayscale=True, target_size=(200, 20
             img = cv2.imread(str(ruta_img))
 
             if img is None:
-                print(f"[!] No se pudo leer: {ruta_img.name}")
+                print(f"[!] No se pudo leer la imagen: {archivo}")
                 continue
 
             mano = segmentar_mano(img)
@@ -78,33 +137,19 @@ def procesar_carpetas(base_path, dest_path, grayscale=True, target_size=(200, 20
             if not cv2.imwrite(str(salida), procesada):
                 print(f"[X] Error al guardar: {salida}")
 
-    print(f"\n✅ Proceso completado. Revisa la carpeta '{dest_path}'")
+    print(f"\n[✓] Proceso completado exitosamente en: '{dest_path}'")
+
+
+
+# EJECUCIÓN DEL SCRIPT
 
 if __name__ == '__main__':
-    APP_DIR = Path(__file__).resolve().parent
-    BASE_DIR = APP_DIR.parent
+    print("=" * 60)
+    print("INICIANDO SEGMENTACIÓN Y PREPROCESAMIENTO")
+    print(f"  - Origen:      {RUTA_INPUT}")
+    print(f"  - Destino:     {RUTA_OUTPUT}")
+    print(f"  - Formato:     {'Escala de grises (1 canal)' if ESCALA_GRISES else 'Color BGR (3 canales)'}")
+    print(f"  - Redimensión: {f'{TAMANO_IMG[0]}x{TAMANO_IMG[1]}' if TAMANO_IMG else 'Ninguna'}")
+    print("=" * 60)
 
-    default_input = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado'
-    default_output = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado_prueba'
-
-    parser = argparse.ArgumentParser(description="Segmentación y preprocesamiento genérico de manos para LSM.")
-    parser.add_argument('--input', type=str, default=str(default_input), help="Ruta de la carpeta original")
-    parser.add_argument('--output', type=str, default=str(default_output), help="Ruta de la carpeta de destino")
-    parser.add_argument('--rgb', action='store_true', help="Guardar a color (por defecto convierte a escala de grises)")
-    parser.add_argument('--no-resize', action='store_true', help="Mantener el tamaño original (por defecto redimensiona a 200x200)")
-    parser.add_argument('--size', type=int, default=200, help="Tamaño de redimensión (ej. 200 para 200x200)")
-    
-    args = parser.parse_args()
-    
-    grayscale = not args.rgb
-    target_size = None if args.no_resize else (args.size, args.size)
-    
-    print("=" * 50)
-    print("INICIANDO SEGMENTACIÓN GENÉRICA")
-    print(f"  - Entrada:     {args.input}")
-    print(f"  - Salida:      {args.output}")
-    print(f"  - Formato:     {'Escala de grises (1 canal)' if grayscale else 'Color BGR (3 canales)'}")
-    print(f"  - Redimensión: {f'{args.size}x{args.size}' if target_size else 'Ninguna'}")
-    print("=" * 50)
-    
-    procesar_carpetas(args.input, args.output, grayscale=grayscale, target_size=target_size)
+    procesar_carpetas(RUTA_INPUT, RUTA_OUTPUT, grayscale=ESCALA_GRISES, target_size=TAMANO_IMG)
