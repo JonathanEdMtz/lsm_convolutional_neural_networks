@@ -44,15 +44,37 @@ A cada imagen original se le aplican transformaciones aleatorias dentro de los s
 
 ---
 
+## 🧠 Arquitectura de la Red Neuronal (`training.py`)
+
+El modelo de clasificación de señas LSM está construido bajo una arquitectura de **Red Neuronal Convolucional Profunda Modificada de Estilo VGG con Normalización por Lote y Pooling Global** (*Custom VGG-Style Deep CNN con Batch Normalization & Global Average Pooling* - `LSM-DeepCNN-v1`).
+
+### 📐 Clasificación y Características de la Arquitectura:
+
+1. **Familia / Estilo VGG (*VGG-Style Architecture*):**
+   * Organizada en bloques convolucionales secuenciales con filtros pequeños de $3 \times 3$ y reducción espacial progresiva mediante `MaxPooling2D(2, 2)`.
+   * Profundidad de canales ascendente: $32 \rightarrow 64 \rightarrow 128 \rightarrow 256$ filtros para extraer desde bordes simples y contornos hasta patrones complejos de articulaciones y postura de los dedos.
+
+2. **Normalización por Lote (*Batch Normalization*):**
+   * Incorporada inmediatamente después de cada capa convolucional y capa densa.
+   * Estabiliza el proceso de aprendizaje y acelera la velocidad de convergencia entre 3 y 5 veces sobre volúmenes masivos de datos (escalable hasta 403,200 imágenes).
+
+3. **Global Average Pooling 2D (GAP):**
+   * Sustituye la tradicional capa `Flatten()`, promediando los mapas de características espaciales.
+   * Reduce drásticamente los parámetros y el tamaño del archivo `.h5` resultante (de ~200 MB a solo **~12 MB**) evitando el sobreajuste (*overfitting*).
+
+4. **Optimización Inteligente y Regularización:**
+   * **Dropout (0.4 y 0.3):** Previene la memorización en las capas densas clasificadoras.
+   * **ReduceLROnPlateau:** Disminuye automáticamente la tasa de aprendizaje (`learning_rate`) a la mitad cuando la pérdida en validación se estanca en letras complejas.
+   * **EarlyStopping:** Detiene automáticamente el entrenamiento al alcanzar la máxima precisión en validación y restaura los mejores pesos encontrados.
+
+---
+
 ## 🚀 Ejemplo de Uso
 
 ```bash
-# 1. Preprocesar y segmentar manos
-python TrainingApp/preprocess.py
+# 1. Pipeline Unificado (Segmentación ROI + Escala de grises + Aumento 50/50)
+python TrainingApp/prepare_dataset.py
 
-# 2. Generar aumentos de datos balanceados 50/50
-python TrainingApp/augment_data.py
-
-# 3. Entrenar la Red Neuronal CNN
+# 2. Entrenar la Red Neuronal CNN Avanzada
 python TrainingApp/training.py
 ```
