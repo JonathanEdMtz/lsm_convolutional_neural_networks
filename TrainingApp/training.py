@@ -16,7 +16,7 @@ BASE_DIR = PATH_DATA.parent
 TAMANO_IMG = 200
 RUTA_DATASET = BASE_DIR / "data" / "data_training" / "lsm_aumentado_50der_50izq"
 NUM_CLASES = 21
-BATCH_SIZE = 128   # Optimizado para procesar grandes conjuntos de datos de forma fluida
+BATCH_SIZE = 32  # Optimizado para procesar grandes conjuntos de datos de forma fluida
 EPOCHS = 40
 
 SAVE_DIR = BASE_DIR / "build"
@@ -32,8 +32,16 @@ if not gpus:
     raise RuntimeError(
         "❌ TensorFlow no detectó ninguna GPU."
     )
+try:
+    tf.config.set_logical_device_configuration(
+        gpus[0],
+        [tf.config.LogicalDeviceConfiguration(memory_limit=3800)]
+    )
+except RuntimeError as e:
+    print(f"❌ No se pudo configurar la GPU: {e}")
 
 print("✅ GPU detectada:", gpus)
+
 dispositivo_usado = f"GPU: {tf.config.experimental.get_device_details(gpus[0])['device_name']}" if gpus else "CPU (Sin GPU aceleradora)"
 
 print("=" * 70)
