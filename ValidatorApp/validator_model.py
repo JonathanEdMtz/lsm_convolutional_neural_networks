@@ -8,7 +8,7 @@ import mediapipe as mp
 # Cargar modelo entrenado
 APP_DIR = Path(__file__).resolve().parent
 BASE_DIR = APP_DIR.parent
-MODEL_PATH = BASE_DIR / 'build' / 'DeepCNNv1.h5'
+MODEL_PATH = BASE_DIR / 'build' / 'DeepCNNv2.h5'
 
 if not MODEL_PATH.exists():
     print(f"[!] Error: No se encontró el modelo entrenado en {MODEL_PATH}")
