@@ -1,68 +1,145 @@
 import os
+from pathlib import Path
 import cv2
 import numpy as np
-from pathlib import Path
-from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array
 
-PATH_DATA = Path(__file__).resolve().parent
-BASE_DIR = PATH_DATA.parent
+# Rutas base del proyecto
+DIR_ACTUAL = Path(__file__).resolve().parent
+BASE_DIR = DIR_ACTUAL.parent
 
-RUTA_ORIGEN = BASE_DIR / "data" / "data_training" / "lsm"         # Dataset original
-RUTA_DESTINO = BASE_DIR / "data" / "data_training" / "lsm_aument2"  # Dataset aumentado
+# Carpeta con las imágenes originales a aumentar
+RUTA_ORIGEN = BASE_DIR / "data" / "data_training" / "lsm"
 
-AUMENTOS_POR_IMAGEN = 3  # Generará 3 aumentos originales + 3 aumentos espejados (+ 1 original + 1 espejo = 8 imágenes en total, 50% derecha / 50% izquierda)
+# Carpeta donde se guardará el nuevo dataset aumentado
+RUTA_DESTINO = BASE_DIR / "data" / "data_training" / "lsm_aumentado_50der_50izq"
 
-if not RUTA_ORIGEN.exists():
-    print(f"[!] Error: La ruta de origen {RUTA_ORIGEN} no existe.")
-    exit(1)
+# Cantidad de aumentos por orientación
+# 3 variaciones derecha + 3 variaciones izquierda (+ 1 base der + 1 base izq) = 8 imágenes por foto
+AUMENTOS_POR_ORIENTACION = 3
 
-# Recorremos todas las clases
-for clase in os.listdir(RUTA_ORIGEN):
-    ruta_clase_origen = os.path.join(RUTA_ORIGEN, clase)
-    if not os.path.isdir(ruta_clase_origen):
-        continue
-    ruta_clase_destino = os.path.join(RUTA_DESTINO, clase)
-    os.makedirs(ruta_clase_destino, exist_ok=True)
 
-    for img_name in os.listdir(ruta_clase_origen):
-        img_path = os.path.join(ruta_clase_origen, img_name)
-        img = cv2.imread(img_path)
+def generar_aumento_opencv(imagen):
+    """
+    Aplica transformaciones geométricas aleatorias a la imagen recibida:
+      - Rotación: entre -30° y +30°
+      - Zoom: escala entre 75% y 125%
+      - Desplazamiento horizontal (dx) y vertical (dy): hasta ±12%
+    
+    Usa OpenCV puro (warpAffine), rápido y sin dependencias externas.
+    """
+    alto, ancho = imagen.shape[:2]
 
-        if img is None:
-            continue
+    # 1. Definir valores aleatorios de rotación, zoom y traslación
+    angulo = np.random.uniform(-30, 30)
+    zoom = np.random.uniform(0.75, 1.25)
+    dx = np.random.uniform(-0.12, 0.12) * ancho
+    dy = np.random.uniform(-0.12, 0.12) * alto
 
-        base_name = os.path.splitext(img_name)[0]
+    # 2. Calcular la matriz de rotación y zoom tomando como referencia el centro
+    centro = (ancho / 2, alto / 2)
+    matriz = cv2.getRotationMatrix2D(centro, angulo, zoom)
 
-        # 1. Guardar imagen original (Mano Derecha / Base)
-        cv2.imwrite(os.path.join(ruta_clase_destino, f"{base_name}_original.jpg"), img)
+    # 3. Sumar el desplazamiento horizontal y vertical en la matriz
+    matriz[0, 2] += dx
+    matriz[1, 2] += dy
 
-        # 2. Guardar imagen espejo limpia (Mano Izquierda / Base)
-        espejo = cv2.flip(img, 1)
-        cv2.imwrite(os.path.join(ruta_clase_destino, f"{base_name}_mirror.jpg"), espejo)
+    # 4. Aplicar la transformación a la imagen
+    return cv2.warpAffine(
+        imagen,
+        matriz,
+        (ancho, alto),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_REPLICATE
+    )
 
-        # Generador de aumentos aleatorios
-        datagen = ImageDataGenerator(
-            rescale=1./255,
-            rotation_range=30,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            shear_range=15,
-            zoom_range=[0.7, 1.4],
-            fill_mode='nearest'
-        )
 
-        img_array = img_to_array(img)
-        img_array = np.expand_dims(img_array, 0)
-        gen = datagen.flow(img_array, batch_size=1)
+# ==============================================================================
+# PIPELINE DE AUMENTO DE DATOS BALANCEADO (50% DERECHA / 50% IZQUIERDA)
+# ==============================================================================
 
-        # 3. Generar aumentos balanceados 50/50
-        for i in range(AUMENTOS_POR_IMAGEN):
-            # Aumento para Mano Derecha
-            batch_orig = next(gen)[0] * 255  # Desnormaliza
-            batch_orig = np.clip(batch_orig, 0, 255).astype(np.uint8)
-            cv2.imwrite(os.path.join(ruta_clase_destino, f"{base_name}_orig_aug{i}.jpg"), batch_orig)
+def aumentar_dataset(origen_path=RUTA_ORIGEN, destino_path=RUTA_DESTINO,
+                     aumentos_por_orientacion=AUMENTOS_POR_ORIENTACION):
+    """
+    Lee las imágenes del directorio de origen y genera exactamente 8 imágenes por cada toma:
+      1. Base original intacta (Mano Derecha)
+      2. Base en espejo horizontal (Mano Izquierda)
+      3. Tres aumentos con variaciones geométricas para Mano Derecha
+      4. Tres aumentos simétricos en espejo para Mano Izquierda
 
-            # Espejo idéntico del aumento para Mano Izquierda
-            batch_mirr = cv2.flip(batch_orig, 1)
-            cv2.imwrite(os.path.join(ruta_clase_destino, f"{base_name}_mirr_aug{i}.jpg"), batch_mirr)
+    TOTAL: 8 imágenes generadas por toma (4 derechas y 4 izquierdas: 50% / 50%).
+    """
+    origen_path = Path(origen_path)
+    destino_path = Path(destino_path)
 
+    # Validar que la carpeta de origen exista
+    if not origen_path.exists():
+        print(f"[!] Error: La ruta de origen no existe: {origen_path}")
+        return
+
+    print("=" * 70)
+    print("INICIANDO AUMENTO DE DATOS BALANCEADO (8 IMÁGENES POR TOMA)")
+    print(f"  - Origen:        {origen_path}")
+    print(f"  - Destino:       {destino_path}")
+    print("  - Distribución:  4 Mano Derecha (50%) vs 4 Mano Izquierda (50%)")
+    print("=" * 70)
+
+    # Obtener las subcarpetas de clases existentes (00, 01, ..., 20)
+    clases = sorted([c for c in os.listdir(origen_path) if (origen_path / c).is_dir()])
+    total_generadas = 0
+
+    for clase in clases:
+        dir_origen = origen_path / clase
+        dir_destino = destino_path / clase
+        dir_destino.mkdir(parents=True, exist_ok=True)
+
+        # Filtrar solo archivos de imagen
+        archivos = [f for f in os.listdir(dir_origen) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
+        print(f"[{clase}] Generando aumentos para {len(archivos)} imágenes...")
+
+        for archivo in archivos:
+            ruta_img = dir_origen / archivo
+
+            # Leer la imagen
+            img = cv2.imread(str(ruta_img), cv2.IMREAD_UNCHANGED)
+            if img is None:
+                continue
+
+            nombre_base = Path(archivo).stem
+
+            # ------------------------------------------------------------------
+            # 1. Base Original (Mano Derecha)
+            # ------------------------------------------------------------------
+            cv2.imwrite(str(dir_destino / f"{nombre_base}_orig.jpg"), img)
+            total_generadas += 1
+
+            # ------------------------------------------------------------------
+            # 2. Base Espejo (Mano Izquierda)
+            # ------------------------------------------------------------------
+            img_espejo = cv2.flip(img, 1)  # 1 = volteo horizontal
+            cv2.imwrite(str(dir_destino / f"{nombre_base}_mirr.jpg"), img_espejo)
+            total_generadas += 1
+
+            # ------------------------------------------------------------------
+            # 3. Generar las 6 variaciones aumentadas (3 Derechas + 3 Izquierdas)
+            # ------------------------------------------------------------------
+            for i in range(aumentos_por_orientacion):
+                # Variación geométrica para Mano Derecha
+                aumento_der = generar_aumento_opencv(img)
+                cv2.imwrite(str(dir_destino / f"{nombre_base}_orig_aug{i}.jpg"), aumento_der)
+                total_generadas += 1
+
+                # Variación simétrica para Mano Izquierda
+                aumento_izq = cv2.flip(aumento_der, 1)
+                cv2.imwrite(str(dir_destino / f"{nombre_base}_mirr_aug{i}.jpg"), aumento_izq)
+                total_generadas += 1
+
+    print(f"\n[✓] Aumento de datos completado exitosamente en: '{destino_path}'")
+    print(f"[✓] Total de imágenes generadas: {total_generadas}")
+
+
+if __name__ == '__main__':
+    aumentar_dataset(
+        origen_path=RUTA_ORIGEN,
+        destino_path=RUTA_DESTINO,
+        aumentos_por_orientacion=AUMENTOS_POR_ORIENTACION
+    )

@@ -1,14 +1,13 @@
 # TrainingApp
 
-Módulo para el preprocesamiento, aumento de datos (*data augmentation*) y entrenamiento de la red neuronal convolucional (CNN) en Lengua de Señas Mexicana (LSM).
+Módulo para el aumento de datos (*data augmentation*), preprocesamiento y entrenamiento de la red neuronal convolucional (CNN).
 
 ---
 
 ## 📁 Archivos del módulo
 
-* **`prepare_dataset.py`**: **[RECOMENDADO]** Script unificado que ejecuta todo el pipeline (Segmentación ROI + Escala de grises 200x200 + Aumento balanceado 50/50). Soporta la bandera `aplicar_aumento=True` para Entrenamiento y `aplicar_aumento=False` para Validación.
-* **`preprocess.py`**: Recorta el área de la mano (ROI) usando MediaPipe (compatible con versión Legacy y Tasks API en Python 3.13+) y convierte las imágenes a escala de grises y tamaño $200 \times 200$.
-* **`augment_data.py`**: Aplica técnicas de aumento de datos balanceadas (50% mano derecha / 50% mano izquierda) sobre el dataset original.
+* **`preprocess.py`**: Pipeline secuencial de preprocesamiento (1. Segmentación ROI con MediaPipe -> 2. Redimensionamiento 200x200 -> 3. Conversión a escala de grises -> 4. Normalización [0.0, 1.0]).
+* **`augment_data.py`**: Aplica técnicas de aumento de datos balanceadas (50% mano derecha / 50% mano izquierda, generando 8 imágenes por toma).
 * **`training.py`**: Define la arquitectura de la red CNN y realiza el proceso de entrenamiento.
 
 ---
@@ -106,9 +105,12 @@ Al finalizar cada ejecución, `training.py` detecta automáticamente el hardware
 ## 🚀 Ejemplo de Uso
 
 ```bash
-# 1. Pipeline Unificado (Segmentación ROI + Escala de grises + Aumento 50/50)
-python TrainingApp/prepare_dataset.py
+# 1. Preprocesamiento (Segmentación ROI + Redimensión 200x200 + Escala de grises + Normalización)
+python TrainingApp/preprocess.py
 
-# 2. Entrenar la Red Neuronal CNN Avanzada
+# 2. Aumento de Datos Balanceado 50/50 (Entrenamiento)
+python TrainingApp/augment_data.py
+
+# 3. Entrenar la Red Neuronal CNN Avanzada
 python TrainingApp/training.py
 ```

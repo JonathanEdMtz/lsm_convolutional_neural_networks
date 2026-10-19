@@ -10,12 +10,11 @@ import mediapipe as mp
 APP_DIR = Path(__file__).resolve().parent
 BASE_DIR = APP_DIR.parent
 
-# Rutas de origen y destino
+# Rutas de origen y destino por defecto (Validación)
 RUTA_INPUT = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado'
 RUTA_OUTPUT = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado_preprocesado'
 
 # Parámetros de procesamiento
-ESCALA_GRISES = True
 TAMANO_IMG = (200, 200)
 
 
@@ -44,13 +43,25 @@ else:
     detector_manos = vision.HandLandmarker.create_from_options(options)
 
 
+# ==============================================================================
+# PREPROCESAMIENTO EN ORDEN SECUENCIAL:
+# Entrada: Imagen de entrada
+# 1.- Segmentación de la mano
+# 2.- Redimensionamiento
+# 3.- Conversión a escala de grises
+# 4.- Normalización
+# Salida: Imagen de salida
+# ==============================================================================
+
+# 1. Segmentación de la mano
 def segmentar_mano(imagen_bgr):
     """
-    Detecta la mano en la imagen y devuelve el recorte (ROI) con un margen de seguridad.
-    Retorna None si no se detecta ninguna mano.
+    1.- Segmentación de la mano:
+    Detecta la mano en la imagen usando MediaPipe y recorta la región de interés (ROI)
+    con un margen de seguridad. Retorna None si no se detecta la mano.
     """
-    alto, ancho, _ = imagen_bgr.shape
-    imagen_rgb = cv2.cvtColor(imagen_bgr, cv2.COLOR_BGR2RGB)
+    alto, ancho = imagen_bgr.shape[:2]
+    imagen_rgb = cv2.cvtColor(imagen_bgr, cv2.COLOR_BGR2RGB) if len(imagen_bgr.shape) == 3 else imagen_bgr
 
     landmarks_list = []
     if USE_TASKS_API:
@@ -79,36 +90,80 @@ def segmentar_mano(imagen_bgr):
     return imagen_bgr[y_min:y_max, x_min:x_max]
 
 
-def preprocesar(img_bgr, grayscale=True, target_size=(200, 200)):
+# 2. Redimensionamiento
+def redimensionar(imagen, target_size=(200, 200)):
     """
-    Aplica conversión a escala de grises y/o redimensionamiento a la imagen segmentada.
+    2.- Redimensionamiento:
+    Redimensiona la imagen al tamaño objetivo especificado (por defecto 200x200).
     """
-    imagen_procesada = img_bgr
-
-    if grayscale:
-        imagen_procesada = cv2.cvtColor(imagen_procesada, cv2.COLOR_BGR2GRAY)
-
-    if target_size is not None:
-        imagen_procesada = cv2.resize(imagen_procesada, target_size)
-
-    return imagen_procesada
+    if target_size is None:
+        return imagen
+    return cv2.resize(imagen, target_size)
 
 
-def procesar_carpetas(base_path, dest_path, grayscale=True, target_size=(200, 200)):
+# 3. Conversión a escala de grises
+def convertir_escala_grises(imagen):
     """
-    Recorre los subdirectorios del dataset (carpetas 00 a 20),
-    segmenta la mano en cada imagen y guarda el resultado en la carpeta de destino.
+    3.- Conversión a escala de grises:
+    Convierte la imagen de formato BGR a escala de grises (1 canal).
+    """
+    if len(imagen.shape) == 3 and imagen.shape[2] == 3:
+        return cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+    return imagen
+
+
+# 4. Normalización
+def normalizar(imagen):
+    """
+    4.- Normalización:
+    Normaliza los valores de los píxeles al rango numérico [0.0, 1.0].
+    """
+    return imagen.astype(np.float32) / 255.0
+
+
+def preprocesar(imagen_bgr, target_size=TAMANO_IMG, normalizar_salida=True):
+    """
+    Ejecuta el pipeline completo y ordenado:
+    Entrada: Imagen de entrada
+      1.- Segmentación de la mano
+      2.- Redimensionamiento
+      3.- Conversión a escala de grises
+      4.- Normalización
+    Salida: Imagen de salida
+    """
+    # 1.- Segmentación de la mano
+    mano = segmentar_mano(imagen_bgr)
+    if mano is None:
+        return None
+
+    # 2.- Redimensionamiento
+    img_redimensionada = redimensionar(mano, target_size=target_size)
+
+    # 3.- Conversión a escala de grises
+    img_gris = convertir_escala_grises(img_redimensionada)
+
+    # 4.- Normalización
+    salida = normalizar(img_gris) if normalizar_salida else img_gris
+
+    return salida
+
+
+def procesar_carpetas(base_path, dest_path, target_size=TAMANO_IMG):
+    """
+    Recorre los subdirectorios del dataset, ejecuta el pipeline ordenado
+    (Segmentación -> Redimensionamiento -> Escala de grises -> Normalización)
+    y guarda las imágenes procesadas en la carpeta de destino.
     """
     base_path = Path(base_path)
     dest_path = Path(dest_path)
 
-    # Procesar clases numeradas del 00 al 20
-    for i in range(21):
-        subcarpeta = f"{i:02}"
+    # Detectar clases existentes (ej. 00 al 20)
+    subdirs = sorted([d.name for d in base_path.iterdir() if d.is_dir()]) if base_path.exists() else []
+    clases = subdirs if subdirs else [f"{i:02}" for i in range(21)]
+
+    for subcarpeta in clases:
         origen = base_path / subcarpeta
         destino = dest_path / subcarpeta
-
-        # Crear carpeta de destino si no existe
         destino.mkdir(parents=True, exist_ok=True)
 
         if not origen.exists():
@@ -126,30 +181,38 @@ def procesar_carpetas(base_path, dest_path, grayscale=True, target_size=(200, 20
                 print(f"[!] No se pudo leer la imagen: {archivo}")
                 continue
 
-            mano = segmentar_mano(img)
-            if mano is None:
+            # Pipeline ordenado: 1. Segmentación -> 2. Redimensión -> 3. Grises -> 4. Normalización
+            procesada = preprocesar(img, target_size=target_size, normalizar_salida=True)
+            if procesada is None:
                 print(f"[!] Mano no detectada: {archivo}")
                 continue
 
-            procesada = preprocesar(mano, grayscale=grayscale, target_size=target_size)
             salida = destino / archivo
 
-            if not cv2.imwrite(str(salida), procesada):
+            # Al guardar a archivo de imagen (JPG/PNG), convertimos el rango [0, 1] a uint8 [0, 255]
+            if procesada.dtype != np.uint8 and procesada.max() <= 1.0:
+                img_guardar = (procesada * 255.0).clip(0, 255).astype(np.uint8)
+            else:
+                img_guardar = procesada
+
+            if not cv2.imwrite(str(salida), img_guardar):
                 print(f"[X] Error al guardar: {salida}")
 
     print(f"\n[✓] Proceso completado exitosamente en: '{dest_path}'")
-
 
 
 # EJECUCIÓN DEL SCRIPT
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("INICIANDO SEGMENTACIÓN Y PREPROCESAMIENTO")
+    print("INICIANDO PREPROCESAMIENTO SECUENCIAL")
+    print("  1. Segmentación de la mano")
+    print("  2. Redimensionamiento")
+    print("  3. Conversión a escala de grises")
+    print("  4. Normalización")
     print(f"  - Origen:      {RUTA_INPUT}")
     print(f"  - Destino:     {RUTA_OUTPUT}")
-    print(f"  - Formato:     {'Escala de grises (1 canal)' if ESCALA_GRISES else 'Color BGR (3 canales)'}")
-    print(f"  - Redimensión: {f'{TAMANO_IMG[0]}x{TAMANO_IMG[1]}' if TAMANO_IMG else 'Ninguna'}")
+    print(f"  - Tamaño:      {TAMANO_IMG[0]}x{TAMANO_IMG[1]}")
     print("=" * 60)
 
-    procesar_carpetas(RUTA_INPUT, RUTA_OUTPUT, grayscale=ESCALA_GRISES, target_size=TAMANO_IMG)
+    procesar_carpetas(RUTA_INPUT, RUTA_OUTPUT, target_size=TAMANO_IMG)
