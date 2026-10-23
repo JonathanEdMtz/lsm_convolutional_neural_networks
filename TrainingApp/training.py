@@ -14,13 +14,13 @@ BASE_DIR = PATH_DATA.parent
 
 # Configuraciones para Dataset Masivo
 TAMANO_IMG = 200
-RUTA_DATASET = BASE_DIR / "data" / "data_training" / "lsm_aumentado_50der_50izq"
+RUTA_DATASET = BASE_DIR / "data" / "data_training" / "lsm_training_preprocesado_augment"
 NUM_CLASES = 21
 BATCH_SIZE = 32  # Optimizado para procesar grandes conjuntos de datos de forma fluida
 EPOCHS = 40
 
 SAVE_DIR = BASE_DIR / "build"
-name = SAVE_DIR / "DeepCNNv2"
+name = SAVE_DIR / "DeepCNNv3"
 
 if not RUTA_DATASET.exists():
     print(f"[!] Error: La ruta del dataset {RUTA_DATASET} no existe.")

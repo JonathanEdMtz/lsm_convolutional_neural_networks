@@ -11,8 +11,8 @@ APP_DIR = Path(__file__).resolve().parent
 BASE_DIR = APP_DIR.parent
 
 # Rutas de origen y destino por defecto (Validación)
-RUTA_INPUT = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado'
-RUTA_OUTPUT = BASE_DIR / 'data' / 'data_validation' / 'lsm_entorno_semicontrolado_preprocesado'
+RUTA_INPUT = BASE_DIR / 'data' / 'data_validation' / 'lsm_validation'
+RUTA_OUTPUT = BASE_DIR / 'data' / 'data_validation' / 'lsm_validation_preprocesado2'
 
 # Parámetros de procesamiento
 TAMANO_IMG = (200, 200)

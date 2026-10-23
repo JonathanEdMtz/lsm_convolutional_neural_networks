@@ -8,10 +8,10 @@ DIR_ACTUAL = Path(__file__).resolve().parent
 BASE_DIR = DIR_ACTUAL.parent
 
 # Carpeta con las imágenes originales a aumentar
-RUTA_ORIGEN = BASE_DIR / "data" / "data_training" / "lsm"
+RUTA_ORIGEN = BASE_DIR / "data" / "data_training" / "lsm_training_preprocesado"
 
 # Carpeta donde se guardará el nuevo dataset aumentado
-RUTA_DESTINO = BASE_DIR / "data" / "data_training" / "lsm_aumentado_50der_50izq"
+RUTA_DESTINO = BASE_DIR / "data" / "data_training" / "lsm_training_preprocesado_augment"
 
 # Cantidad de aumentos por orientación
 # 3 variaciones derecha + 3 variaciones izquierda (+ 1 base der + 1 base izq) = 8 imágenes por foto
