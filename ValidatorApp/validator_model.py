@@ -67,6 +67,7 @@ def preparar_imagen_segmentada(img_mano):
 total_correctas = 0
 total_imagenes = 0
 porcentajes = []
+todas_las_incorrectas = []
 
 print("\n--- RESULTADOS POR CLASE (con segmentación de mano) ---\n")
 
@@ -79,6 +80,7 @@ for i, letra in enumerate(CLASES_LSM):
     archivos = [f for f in os.listdir(carpeta) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
     correctas = 0
     total = 0
+    errores_clase = []
 
     for archivo in archivos:
         ruta_img = carpeta / archivo
@@ -97,9 +99,23 @@ for i, letra in enumerate(CLASES_LSM):
         entrada = preparar_imagen_segmentada(mano_segmentada)
         prediccion = modelo.predict(entrada, verbose=0)
         clase_predicha = np.argmax(prediccion)
+        confianza = float(np.max(prediccion) * 100)
+        letra_predicha = CLASES_LSM[clase_predicha] if clase_predicha < len(CLASES_LSM) else str(clase_predicha)
 
         if clase_predicha == i:
             correctas += 1
+        else:
+            info_error = {
+                'archivo': archivo,
+                'esperada': letra,
+                'clase_esperada': f"{i:02}",
+                'predicha': letra_predicha,
+                'clase_predicha': f"{clase_predicha:02}",
+                'confianza': confianza
+            }
+            errores_clase.append(info_error)
+            todas_las_incorrectas.append(info_error)
+
         total += 1
 
     incorrectas = total - correctas
@@ -110,10 +126,24 @@ for i, letra in enumerate(CLASES_LSM):
 
     print(f"Letra {letra} ({i:02}): Correctas: {correctas} | Incorrectas: {incorrectas} | Precisión: {porcentaje:.2f}%")
 
+    # Mostrar las imágenes incorrectas y qué letra predijo el modelo
+    if errores_clase:
+        for err in errores_clase:
+            print(f"   ↳ [X] {err['archivo']}: Reconocida como '{err['predicha']}' ({err['confianza']:.2f}% de confianza)")
+
 # Promedio global
 promedio_total = sum(porcentajes) / len(porcentajes) if porcentajes else 0
 
 print("\n--- RESUMEN GLOBAL ---")
 print(f"Total imágenes evaluadas: {total_imagenes}")
 print(f"Total correctamente clasificadas: {total_correctas}")
+print(f"Total incorrectas: {len(todas_las_incorrectas)}")
 print(f"Precisión promedio del sistema: {promedio_total:.2f}%")
+
+# Mostrar desglose de confusiones más frecuentes si hubo errores
+if todas_las_incorrectas:
+    from collections import Counter
+    print("\n--- CONFUSIONES DETECTADAS ---")
+    confusiones = Counter((e['esperada'], e['predicha']) for e in todas_las_incorrectas)
+    for (esperada, predicha), cantidad in confusiones.most_common():
+        print(f"   • Letra '{esperada}' fue clasificada como '{predicha}': {cantidad} vez/veces")
